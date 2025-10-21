@@ -1,6 +1,7 @@
 "use client";
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 let cachedClient: SupabaseClient | null = null;
 
@@ -19,6 +20,10 @@ export function getSupabaseClient(): SupabaseClient | null {
 
   if (cachedClient) return cachedClient;
 
-  cachedClient = createClient(url, anonKey);
+  // Client component que sincroniza sesión vía cookies para SSR
+  cachedClient = createClientComponentClient({
+    supabaseUrl: url,
+    supabaseKey: anonKey,
+  }) as unknown as SupabaseClient;
   return cachedClient;
 }

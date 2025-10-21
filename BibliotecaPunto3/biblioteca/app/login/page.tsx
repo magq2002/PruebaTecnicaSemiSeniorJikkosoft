@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,13 +38,26 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
+        // Asegurar que el perfil exista para cumplir FK libraries.owner_id → profiles.id
+        const u = data.user;
+        if (u?.id) {
+          const fullName = (u.user_metadata as any)?.full_name ?? u.email ?? "Sin nombre";
+          const emailVal = u.email ?? email;
+          try {
+            await supabase
+              .from("profiles")
+              .upsert({ id: u.id, full_name: fullName, email: emailVal })
+              .select("*")
+              .single();
+          } catch (upErr) {
+            // Ignoramos errores aquí; si hay conflicto único o RLS, se resolverá tras editar perfil
+            console.warn("No se pudo upsert perfil tras login", upErr);
+          }
+        }
         setMessage("Sesión iniciada correctamente.");
         setEmail("");
         setPassword("");
-        // Opcional: redirigir al inicio
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 800);
+        router.replace("/dashboard");
       }
     } catch (err: any) {
       setError(err.message ?? "Error inesperado al iniciar sesión.");

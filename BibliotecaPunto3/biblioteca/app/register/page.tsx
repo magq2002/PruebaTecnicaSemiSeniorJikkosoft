@@ -36,8 +36,24 @@ export default function RegisterPage() {
       if (error) {
         setError(error.message);
       } else {
+        // Solo intentamos upsert si hay sesión activa (p.ej., registro sin confirmación)
+        const u = data.user;
+        const { data: sess } = await supabase.auth.getSession();
+        if (u?.id && sess?.session) {
+          const fullName = (u.user_metadata as any)?.full_name ?? email;
+          const emailVal = u.email ?? email;
+          try {
+            await supabase
+              .from("profiles")
+              .upsert({ id: u.id, full_name: fullName, email: emailVal })
+              .select("*")
+              .single();
+          } catch (upErr) {
+            console.warn("No se pudo upsert perfil tras registro", upErr);
+          }
+        }
         setMessage(
-          data.user
+          u
             ? "Cuenta creada correctamente. Verifica tu correo si se requiere confirmación."
             : "Registro enviado. Revisa tu correo para confirmar tu cuenta.",
         );
@@ -54,7 +70,7 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
       <Card className="w-full max-w-sm p-6">
-        <h1 className="text-xl font-semibold mb-4">Crear cuenta</h1>
+        <h1 className="text-xl font-semibold mb-4">Registro</h1>
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="grid gap-2">
             <Label htmlFor="email">Correo</Label>
@@ -89,12 +105,9 @@ export default function RegisterPage() {
             </p>
           )}
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Creando cuenta..." : "Registrarse"}
+            {loading ? "Registrando..." : "Crear cuenta"}
           </Button>
         </form>
-        <p className="mt-4 text-sm text-muted-foreground">
-          ¿Ya tienes cuenta? <a href="/login" className="underline">Inicia sesión</a>
-        </p>
       </Card>
     </div>
   );
